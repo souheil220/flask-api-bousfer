@@ -1,0 +1,5 @@
+Flask
+ldap3
+Flask-PyMongo
+requests
+Flask-Odoo
