@@ -118,7 +118,8 @@ def get_location(affectation_id):
         [[["id", "=", affectation_id]]],
         {"fields": ["name"]},
     )
-    location[0]["name"]
+    
+    return location[0]["name"]
 
 
 def get_category(category_id):
@@ -157,6 +158,8 @@ def save_image(id):
         return image_name
     else:
         return ""
+
+
 
 
 def get_asset_detail(id, qr_code=None):
@@ -202,6 +205,7 @@ def get_asset_detail(id, qr_code=None):
                     "affectation_id",
                     "category_id",
                     "employee_affected_id",
+                    "company_location_id"
                 ]
             },
         )
@@ -218,11 +222,12 @@ def get_asset_detail(id, qr_code=None):
                 0
             ]["name"]
 
-
+        
         try:
-            asset[0]["location"] = get_location(asset[0]["affectation_id"][0])[0]["name"]
+            asset[0]["location"] =  get_location(asset[0]["affectation_id"][0])
         except:
             asset[0]["location"] = ""
+
 
     
    
@@ -248,23 +253,42 @@ def get_resource(resource_id):
     return inventaire[0]["company_id"][1]
 
 
-def save_affectation_data(data):
-    for i in range(0, len(data)):
-        models.execute_kw(
-            dbo,
-            uid,
-            password,
-            "account.asset.inventory.line.checklist",
-            "write",
-            [
-                data[i]["id"],
-                {
-                    "checked": data[i]["checked"],
-                    "comment": data[i]["comment"],
-                    "name": data[i]["text"],
-                },
-            ],
-        )
+def save_affectation_data(data,idl):
+    print(data)
+    if(idl is not None):
+        for i in range(0, len(data)):
+            models.execute_kw(
+                dbo,
+                uid,
+                password,
+                "account.asset.inventory.line.checklist",
+                "create",
+                [
+                    {
+                        "checked": data[i]["checked"],
+                        "comment": data[i]["comment"],
+                        "name": data[i]["text"],
+                    },
+                ],
+            )
+
+    else:
+        for i in range(0, len(data)):
+            models.execute_kw(
+                dbo,
+                uid,
+                password,
+                "account.asset.inventory.line.checklist",
+                "write",
+                [
+                    data[i]["id"],
+                    {
+                        "checked": data[i]["checked"],
+                        "comment": data[i]["comment"],
+                        "name": data[i]["text"],
+                    },
+                ],
+            )
 
 
 # Bring inventories that are open
@@ -371,7 +395,7 @@ def save_asset_inventory_line():
     
 
     if(len(data["data"])>0):
-        save_affectation_data(data["data"])
+        save_affectation_data(data["data"],None)
 
     return jsonify(message="id")
 
@@ -397,21 +421,22 @@ def save_asset_inventory_line_exist_not():
     )
 
     if data['image1']!=None and data['image1']!='': 
-        image_importe(data['image1'],data["name"],data["id"])
+        image_importe(data['image1'],data["name"],id)
     if data['image2']!=None and data['image2']!='':
         print(data['image2'])
-        image_importe(data['image2'],data["name"],data["id"])
+        image_importe(data['image2'],data["name"],id)
     if data['image3']!=None and data['image3']!='':
         print(data['image3'])
-        image_importe(data['image3'],data["name"],data["id"])
+        image_importe(data['image3'],data["name"],id)
 
     if(len(data["data"])>0):
-        save_affectation_data(data["data"])
+        save_affectation_data(data["data"],id)
 
-    return jsonify(message="id")
+    return jsonify(message=id)
 
 
 
+# 
 @app.route("/check_list")
 def check_list():
     inventory_line_id = request.args
@@ -425,6 +450,7 @@ def check_list():
         {"fields": ["name", "checked", "comment"]},
     )
     return jsonify(response=check_list_detail)
+
 
 def create_ir_attachement(image,asset_name):
     file_name = asset_name
@@ -448,6 +474,7 @@ def create_ir_attachement(image,asset_name):
     )
     return id
 
+
 def create_inventory_line_image(id_ire_attachement,inventory_line_id):
     print('create_inventory_line_image ',id_ire_attachement)
     id = models.execute_kw(
@@ -464,6 +491,7 @@ def create_inventory_line_image(id_ire_attachement,inventory_line_id):
         ],
     )
     return id
+
 
 def update_ir_attachment(id_ire_attachement,res_id):
     print("update_ir_attachment" ,id_ire_attachement," ", res_id)
