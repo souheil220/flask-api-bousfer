@@ -1,5 +1,6 @@
+from ast import arg
 from flask import Flask, request, jsonify
-from werkzeug.utils import secure_filename
+import threading
 import os
 from datetime import datetime
 from xmlrpc import client as xmlrpclib
@@ -135,35 +136,51 @@ def get_category(category_id):
     return category[0]["name"]
 
 
+def safe_open_w(path):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    return open(path, 'wb')
+
+def decode_image(image,image_name,champ,code):
+    with safe_open_w(f"images/image_produit/{code}/{image_name}{champ}.jpg") as f:
+        f.write(base64.decodebytes(bytes(image,encoding='utf8')))
+    
 
 def save_image(id):
-    asset_image = models.execute_kw(
-            dbo,
-            uid,
-            password,
-            "account.asset.asset",
-            "search_read",
-            [[["id", "=", id]]],
-            {
-                "fields": [
-                    "num_serie",
-                    "image_small"
-                ]
-            },
-        )
-    image_name = asset_image[0]["num_serie"]
-    if asset_image[0]["image_small"]!=False:
-        open(f"images/{image_name}.jpg",
-                    "wb").write(base64.decodebytes(bytes(asset_image[0]["image_small"],encoding='utf8')))
-        return image_name
-    else:
-        return ""
+    urlo = "http://10.10.10.26:4550"
+    dboo = "hasnaoui"
+    usernameo = "SOUHEIL.HADJHABIB@GROUPE-HASNAOUI.COM"
+    passwordo = "Machen220-714"
+    modelss = xmlrpclib.ServerProxy("{}/xmlrpc/2/object".format(urlo))
+    commono = xmlrpclib.ServerProxy("{}/xmlrpc/2/common".format(urlo))
+    uido = commono.authenticate(dboo, usernameo, passwordo, {})
 
+    asset_image = modelss.execute_kw(
+                dboo,
+                uido,
+                passwordo,
+                "account.asset.asset",
+                "search_read",
+                [[["id", "=", id]]],
+                {
+                    "fields": [
+                        "code",
+                        "image_medium",
+                        "image_medium2",
+                        "image_medium3",
+                    ]
+                },
+            )
+    image_name = asset_image[0]["id"]
+    code = asset_image[0]["code"].replace("/","")
+    if asset_image[0]["image_medium"]!=False:
+        decode_image(asset_image[0]["image_medium"],image_name,"image",code)
+    if asset_image[0]["image_medium2"]!=False:
+        decode_image(asset_image[0]["image_medium2"],image_name,"image2",code)
+    if asset_image[0]["image_medium3"]!=False:
+        decode_image( asset_image[0]["image_medium3"],image_name,"image3",code)
+       
 
-
-
-def get_asset_detail(id, qr_code=None):
- 
+def get_asset_detail(id,qr_code=None):
     if qr_code is None:
         asset = models.execute_kw(
             dbo,
@@ -209,6 +226,7 @@ def get_asset_detail(id, qr_code=None):
                 ]
             },
         )
+    
     if(len(asset)>0):
 
         if asset[0]["employee_affected_id"] == False:
@@ -229,9 +247,11 @@ def get_asset_detail(id, qr_code=None):
             asset[0]["location"] = ""
 
 
-    
-   
-    # asset[0]["image"] = save_image(id) +".jpg"
+
+
+        x = threading.Thread(target=save_image,args=(id,))
+        x.start()
+        # x.join()
     
         return asset[0]
     else:
@@ -239,7 +259,6 @@ def get_asset_detail(id, qr_code=None):
 
 
 def get_resource(resource_id):
-    args = request.args
     inventaire = models.execute_kw(
         dbo,
         uid,
@@ -254,7 +273,6 @@ def get_resource(resource_id):
 
 
 def save_affectation_data(data,idl):
-    print(data)
     if(idl is not None):
         for i in range(0, len(data)):
             models.execute_kw(
@@ -265,6 +283,7 @@ def save_affectation_data(data,idl):
                 "create",
                 [
                     {
+                        "inventory_line_id":idl,
                         "checked": data[i]["checked"],
                         "comment": data[i]["comment"],
                         "name": data[i]["text"],
@@ -310,6 +329,7 @@ def get_inventaire():
 # get assets that belongs to that inventory
 @app.route("/get_inventaire_ligne")
 def get_inventaire_line():
+    print("---------------------------")
     args = request.args
     inventory_line = models.execute_kw(
         dbo,
@@ -328,11 +348,11 @@ def get_inventaire_line():
         },
     )
 
-    print(inventory_line)
+   
     if(len(inventory_line)>0):
         for i in range(0, len(inventory_line)):
             inventory_line[i]["data"] = get_asset_detail(
-                inventory_line[i]["asset_id"][0], None
+                inventory_line[i]["asset_id"][0],None
             )
 
     return jsonify(inv_line=inventory_line)
@@ -385,17 +405,25 @@ def save_asset_inventory_line():
     )
     
     if data['image1']!=None and data['image1']!='': 
-        image_importe(data['image1'],data["name"],data["id"])
+        x = threading.Thread(target=image_importe,args=(data['image1'],data["name"],data["id"],))
+        x.start()
+        # image_importe(data['image1'],data["name"],data["id"])
     if data['image2']!=None and data['image2']!='':
-        print(data['image2'])
-        image_importe(data['image2'],data["name"],data["id"])
+        y = threading.Thread(target=image_importe,args=(data['image2'],data["name"],data["id"],))
+        y.start()
+        # print(data['image2'])
+        # image_importe(data['image2'],data["name"],data["id"])
     if data['image3']!=None and data['image3']!='':
-        print(data['image3'])
-        image_importe(data['image3'],data["name"],data["id"])
+        # print(data['image3'])
+        z = threading.Thread(target=image_importe,args=(data['image3'],data["name"],data["id"],))
+        z.start()
+        # image_importe(data['image3'],data["name"],data["id"])
     
 
     if(len(data["data"])>0):
-        save_affectation_data(data["data"],None)
+        a = threading.Thread(target=save_affectation_data,args=(data["data"],None,))
+        a.start()
+        # save_affectation_data(data["data"],None)
 
     return jsonify(message="id")
 
@@ -411,7 +439,7 @@ def save_asset_inventory_line_exist_not():
         [
             {
                 "comment": data["comment"],
-                "quality": "new",
+                "quality": data["quality"],
                 "asset_id": int(data["asset_id"]),
                 "state": "done",
                 "inventory_id": int(data["inventory_id"]),
@@ -430,13 +458,12 @@ def save_asset_inventory_line_exist_not():
         image_importe(data['image3'],data["name"],id)
 
     if(len(data["data"])>0):
+
         save_affectation_data(data["data"],id)
 
     return jsonify(message=id)
 
 
-
-# 
 @app.route("/check_list")
 def check_list():
     inventory_line_id = request.args
@@ -476,7 +503,6 @@ def create_ir_attachement(image,asset_name):
 
 
 def create_inventory_line_image(id_ire_attachement,inventory_line_id):
-    print('create_inventory_line_image ',id_ire_attachement)
     id = models.execute_kw(
         dbo,
         uid,
@@ -494,7 +520,6 @@ def create_inventory_line_image(id_ire_attachement,inventory_line_id):
 
 
 def update_ir_attachment(id_ire_attachement,res_id):
-    print("update_ir_attachment" ,id_ire_attachement," ", res_id)
     id = models.execute_kw(
         dbo,
         uid,
