@@ -140,24 +140,25 @@ def safe_open_w(path):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     return open(path, 'wb')
 
-def decode_image(image,image_name,champ,code):
-    with safe_open_w(f"images/image_produit/{code}/{image_name}{champ}.jpg") as f:
+def decode_image(image,folder_path,image_name,champ,code):
+    with safe_open_w(f"images/{folder_path}/{code}/{image_name}{champ}.jpg") as f:
         f.write(base64.decodebytes(bytes(image,encoding='utf8')))
     
 
 def save_image(id):
-    urlo = "http://10.10.10.26:4550"
-    dboo = "hasnaoui"
-    usernameo = "SOUHEIL.HADJHABIB@GROUPE-HASNAOUI.COM"
-    passwordo = "Machen220-714"
-    modelss = xmlrpclib.ServerProxy("{}/xmlrpc/2/object".format(urlo))
-    commono = xmlrpclib.ServerProxy("{}/xmlrpc/2/common".format(urlo))
-    uido = commono.authenticate(dboo, usernameo, passwordo, {})
+    url_save_image = "http://10.10.10.26:4550"
+    db_save_image = "hasnaoui"
+    username_save_image = "SOUHEIL.HADJHABIB@GROUPE-HASNAOUI.COM"
+    password_save_image = "Machen220-714"
+    models_save_image = xmlrpclib.ServerProxy("{}/xmlrpc/2/object".format(url_save_image))
+    common_save_image = xmlrpclib.ServerProxy("{}/xmlrpc/2/common".format(url_save_image))
+    uido = common_save_image.authenticate(db_save_image, username_save_image, password_save_image, {})
+    print(id)
 
-    asset_image = modelss.execute_kw(
-                dboo,
+    asset_image = models_save_image.execute_kw(
+                db_save_image,
                 uido,
-                passwordo,
+                password_save_image,
                 "account.asset.asset",
                 "search_read",
                 [[["id", "=", id]]],
@@ -173,11 +174,11 @@ def save_image(id):
     image_name = asset_image[0]["id"]
     code = asset_image[0]["code"].replace("/","")
     if asset_image[0]["image_medium"]!=False:
-        decode_image(asset_image[0]["image_medium"],image_name,"image",code)
+        decode_image(asset_image[0]["image_medium"],'image_produit',image_name,"image",code)
     if asset_image[0]["image_medium2"]!=False:
-        decode_image(asset_image[0]["image_medium2"],image_name,"image2",code)
+        decode_image(asset_image[0]["image_medium2"],'image_produit',image_name,"image2",code)
     if asset_image[0]["image_medium3"]!=False:
-        decode_image( asset_image[0]["image_medium3"],image_name,"image3",code)
+        decode_image( asset_image[0]["image_medium3"],'image_produit',image_name,"image3",code)
        
 
 def get_asset_detail(id,qr_code=None):
@@ -248,10 +249,13 @@ def get_asset_detail(id,qr_code=None):
 
 
 
-
-        x = threading.Thread(target=save_image,args=(id,))
-        x.start()
-        # x.join()
+        if id is not None:
+            c = threading.Thread(target=save_image,args=(id,))
+            c.start()
+        else:
+            c = threading.Thread(target=save_image,args=(asset[0]["id"],))
+            c.start()
+        
     
         return asset[0]
     else:
@@ -273,12 +277,19 @@ def get_resource(resource_id):
 
 
 def save_affectation_data(data,idl):
+    url_save_affectation = "http://10.10.10.26:4550"
+    db_save_affectation = "hasnaoui"
+    username_save_affectation = "SOUHEIL.HADJHABIB@GROUPE-HASNAOUI.COM"
+    password_save_affectation = "Machen220-714"
+    models_save_affectation = xmlrpclib.ServerProxy("{}/xmlrpc/2/object".format(url_save_affectation))
+    common_save_affectation = xmlrpclib.ServerProxy("{}/xmlrpc/2/common".format(url_save_affectation))
+    uid_save_affectation = common_save_affectation.authenticate(db_save_affectation, username_save_affectation, password_save_affectation, {})
     if(idl is not None):
         for i in range(0, len(data)):
-            models.execute_kw(
-                dbo,
-                uid,
-                password,
+            models_save_affectation.execute_kw(
+                db_save_affectation,
+                uid_save_affectation,
+                password_save_affectation,
                 "account.asset.inventory.line.checklist",
                 "create",
                 [
@@ -293,10 +304,10 @@ def save_affectation_data(data,idl):
 
     else:
         for i in range(0, len(data)):
-            models.execute_kw(
-                dbo,
-                uid,
-                password,
+            models_save_affectation.execute_kw(
+                db_save_affectation,
+                uid_save_affectation,
+                password_save_affectation,
                 "account.asset.inventory.line.checklist",
                 "write",
                 [
@@ -329,7 +340,6 @@ def get_inventaire():
 # get assets that belongs to that inventory
 @app.route("/get_inventaire_ligne")
 def get_inventaire_line():
-    print("---------------------------")
     args = request.args
     inventory_line = models.execute_kw(
         dbo,
@@ -407,23 +417,39 @@ def save_asset_inventory_line():
     if data['image1']!=None and data['image1']!='': 
         x = threading.Thread(target=image_importe,args=(data['image1'],data["name"],data["id"],))
         x.start()
-        # image_importe(data['image1'],data["name"],data["id"])
+        x_image_saving = threading.Thread(target=decode_image,args=(data['image1'],
+                                                                    'image_inventory',
+                                                                    data["name"],
+                                                                    "image",
+                                                                    data["code"].replace("/",""),))
+        x_image_saving.start()
+
     if data['image2']!=None and data['image2']!='':
         y = threading.Thread(target=image_importe,args=(data['image2'],data["name"],data["id"],))
         y.start()
-        # print(data['image2'])
-        # image_importe(data['image2'],data["name"],data["id"])
+        x_image2_saving = threading.Thread(target=decode_image,args=(data['image2'],
+                                                                    'image_inventory',
+                                                                    data["name"],
+                                                                    "image2",
+                                                                    data["code"].replace("/",""),))
+        x_image2_saving.start()
+        
     if data['image3']!=None and data['image3']!='':
         # print(data['image3'])
         z = threading.Thread(target=image_importe,args=(data['image3'],data["name"],data["id"],))
         z.start()
-        # image_importe(data['image3'],data["name"],data["id"])
-    
+        x_image3_saving = threading.Thread(target=decode_image,args=(data['image3'],
+                                                                    'image_inventory',
+                                                                    data["name"],
+                                                                    "image3",
+                                                                    data["code"].replace("/",""),))
+        x_image3_saving.start()
+
 
     if(len(data["data"])>0):
         a = threading.Thread(target=save_affectation_data,args=(data["data"],None,))
         a.start()
-        # save_affectation_data(data["data"],None)
+        
 
     return jsonify(message="id")
 
@@ -449,17 +475,40 @@ def save_asset_inventory_line_exist_not():
     )
 
     if data['image1']!=None and data['image1']!='': 
-        image_importe(data['image1'],data["name"],id)
+        x = threading.Thread(target=image_importe,args=(data['image1'],data["name"],id,))
+        x.start()
+        x_image_saving = threading.Thread(target=decode_image,args=(data['image1'],
+                                                                    'image_inventory',
+                                                                    data["name"],
+                                                                    "image",
+                                                                    data["code"].replace("/",""),))
+        x_image_saving.start()
+       
     if data['image2']!=None and data['image2']!='':
-        print(data['image2'])
-        image_importe(data['image2'],data["name"],id)
+        y = threading.Thread(target=image_importe,args=(data['image2'],data["name"],id,))
+        y.start()
+        x_image2_saving = threading.Thread(target=decode_image,args=(data['image2'],
+                                                                    'image_inventory',
+                                                                    data["name"],
+                                                                    "image2",
+                                                                    data["code"].replace("/",""),))
+        x_image2_saving.start()
+
     if data['image3']!=None and data['image3']!='':
-        print(data['image3'])
-        image_importe(data['image3'],data["name"],id)
+       
+        z = threading.Thread(target=image_importe,args=(data['image3'],data["name"],id,))
+        z.start()
+        x_image3_saving = threading.Thread(target=decode_image,args=(data['image3'],
+                                                                    'image_inventory',
+                                                                    data["name"],
+                                                                    "image3",
+                                                                    data["code"].replace("/",""),))
+        x_image3_saving.start()
 
     if(len(data["data"])>0):
+        a = threading.Thread(target=save_affectation_data,args=(data["data"],id,))
+        a.start()
 
-        save_affectation_data(data["data"],id)
 
     return jsonify(message=id)
 
@@ -480,11 +529,18 @@ def check_list():
 
 
 def create_ir_attachement(image,asset_name):
+    url_create_ir_attachement = "http://10.10.10.26:4550"
+    db_create_ir_attachement = "hasnaoui"
+    username_ir_attachement = "SOUHEIL.HADJHABIB@GROUPE-HASNAOUI.COM"
+    password_ir_attachement = "Machen220-714"
+    models_ir_attachement = xmlrpclib.ServerProxy("{}/xmlrpc/2/object".format(url_create_ir_attachement))
+    common_ir_attachement = xmlrpclib.ServerProxy("{}/xmlrpc/2/common".format(url_create_ir_attachement))
+    uid_ir_attachement = common_ir_attachement.authenticate(db_create_ir_attachement, username_ir_attachement, password_ir_attachement, {})
     file_name = asset_name
-    id = models.execute_kw(
-        dbo,
-        uid,
-        password,
+    id = models_ir_attachement.execute_kw(
+        db_create_ir_attachement,
+        uid_ir_attachement,
+        password_ir_attachement,
         "ir.attachment",
         "create",
         [
@@ -503,10 +559,19 @@ def create_ir_attachement(image,asset_name):
 
 
 def create_inventory_line_image(id_ire_attachement,inventory_line_id):
-    id = models.execute_kw(
-        dbo,
-        uid,
-        password,
+    url_create_inventory_line_image = "http://10.10.10.26:4550"
+    db_create_inventory_line_image = "hasnaoui"
+    username_create_inventory_line_image = "SOUHEIL.HADJHABIB@GROUPE-HASNAOUI.COM"
+    password_create_inventory_line_image = "Machen220-714"
+    models_create_inventory_line_image = xmlrpclib.ServerProxy("{}/xmlrpc/2/object".format(url_create_inventory_line_image))
+    common_create_inventory_line_image = xmlrpclib.ServerProxy("{}/xmlrpc/2/common".format(url_create_inventory_line_image))
+    uid_create_inventory_line_image = common_create_inventory_line_image.authenticate(db_create_inventory_line_image, 
+                                                                                    username_create_inventory_line_image,
+                                                                                    password_create_inventory_line_image, {})
+    id = models_create_inventory_line_image.execute_kw(
+        db_create_inventory_line_image,
+        uid_create_inventory_line_image,
+        password_create_inventory_line_image,
         "account.asset.inventory.line.image",
         "create",
         [
@@ -520,10 +585,19 @@ def create_inventory_line_image(id_ire_attachement,inventory_line_id):
 
 
 def update_ir_attachment(id_ire_attachement,res_id):
-    id = models.execute_kw(
-        dbo,
-        uid,
-        password,
+    url_update_ir_attachment = "http://10.10.10.26:4550"
+    db_update_ir_attachment = "hasnaoui"
+    username_update_ir_attachment = "SOUHEIL.HADJHABIB@GROUPE-HASNAOUI.COM"
+    password_update_ir_attachment = "Machen220-714"
+    models_update_ir_attachment = xmlrpclib.ServerProxy("{}/xmlrpc/2/object".format(url_update_ir_attachment))
+    common_update_ir_attachment = xmlrpclib.ServerProxy("{}/xmlrpc/2/common".format(url_update_ir_attachment))
+    uid_update_ir_attachment = common_update_ir_attachment.authenticate(db_update_ir_attachment, 
+                                                                        username_update_ir_attachment, 
+                                                                        password_update_ir_attachment, {})
+    id = models_update_ir_attachment.execute_kw(
+        db_update_ir_attachment,
+        uid_update_ir_attachment,
+        password_update_ir_attachment,
         "ir.attachment",
         "write",
         [
@@ -541,11 +615,7 @@ def update_ir_attachment(id_ire_attachement,res_id):
 def image_importe(image,asset_name,inventory_line_id):
     id_ire_attachement = create_ir_attachement(image,asset_name)
     id_inv_line_image = create_inventory_line_image(id_ire_attachement,inventory_line_id)
-    id = update_ir_attachment(id_ire_attachement,id_inv_line_image)
-    
-    
-    # return jsonify(id)
-    return jsonify(id)
+    update_ir_attachment(id_ire_attachement,id_inv_line_image)
 
 @app.route("/get_ir")
 def get_ir_attachement():

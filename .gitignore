@@ -20,7 +20,7 @@ docker-compose.yml
 *.so
 
 # images
-./images
+/images
 # Distribution / packaging
 .Python
 build/
